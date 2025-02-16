@@ -1,0 +1,31 @@
+import { Drawable } from "roughjs/bin/core";
+import { ACTIONS_ENUM, TOOLS_ENUM } from "./constants";
+
+export type Values<T> = T[keyof T];
+
+export interface DrawingElement {
+  id: number;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  roughtElement: Drawable;
+  type: ToolType;
+}
+
+export interface SelectionElement extends DrawingElement {
+  offsetX: number;
+  offsetY: number;
+}
+
+export interface Point2d {
+  x: number;
+  y: number;
+}
+
+export type ToolType = Values<typeof TOOLS_ENUM>;
+export type ActionType = Values<typeof ACTIONS_ENUM>;
+export type DrawingElementType = Exclude<
+  Values<typeof TOOLS_ENUM>,
+  typeof TOOLS_ENUM.SELECTION
+>;
