@@ -8,7 +8,12 @@ import {
   SelectionElement,
   ToolType,
 } from "./utils/types";
-import { getElementAtPosition } from "./utils/utils";
+import {
+  adjustElementCoordinates,
+  cursorForPosition,
+  getElementAtPosition,
+  resizedCoordinates,
+} from "./utils/utils";
 
 const generator = rough.generator();
 
@@ -69,8 +74,12 @@ function App() {
       if (element) {
         const offsetX = clientX - element.x1;
         const offsetY = clientY - element.y1;
-        setAction(ACTIONS_ENUM.MOVING);
         setSelectedElements({ ...element, offsetX, offsetY });
+        if (element.position === "inside") {
+          setAction(ACTIONS_ENUM.MOVING);
+        } else {
+          setAction(ACTIONS_ENUM.RESIZING);
+        }
       }
     } else {
       setAction(ACTIONS_ENUM.DRAWING);
@@ -83,6 +92,7 @@ function App() {
         clientY,
         tool
       );
+      setSelectedElements(element);
       setElements((prev) => [...prev, element]);
     }
   };
@@ -93,12 +103,10 @@ function App() {
     const { clientX, clientY } = e;
 
     if (tool === TOOLS_ENUM.SELECTION) {
-      e.currentTarget.style.cursor = getElementAtPosition(
-        clientX,
-        clientY,
-        elements
-      )
-        ? "move"
+      const element = getElementAtPosition(clientX, clientY, elements);
+
+      e.currentTarget.style.cursor = element
+        ? cursorForPosition(element.position)
         : "default";
     }
 
@@ -108,7 +116,16 @@ function App() {
       updateElement(id, x1, y1, clientX, clientY, tool);
     } else if (action === ACTIONS_ENUM.MOVING) {
       if (selectedElement) {
-        const { id, x1, y1, x2, y2, type, offsetX, offsetY } = selectedElement;
+        const {
+          id,
+          x1,
+          y1,
+          x2,
+          y2,
+          type,
+          offsetX = 0,
+          offsetY = 0,
+        } = selectedElement;
         const width = x2 - x1;
         const height = y2 - y1;
         const nextX1 = clientX - offsetX;
@@ -122,11 +139,31 @@ function App() {
           type
         );
       }
+    } else if (action === ACTIONS_ENUM.RESIZING) {
+      if (selectedElement) {
+        const { id, type, position = null, ...coordinates } = selectedElement;
+        const { x1, y1, x2, y2 } = resizedCoordinates(
+          clientX,
+          clientY,
+          position,
+          coordinates
+        );
+        updateElement(id, x1, y1, x2, y2, type);
+      }
     }
   };
 
   const handleMouseUp = () => {
+    if (action === ACTIONS_ENUM.DRAWING || action === ACTIONS_ENUM.RESIZING) {
+      if (selectedElement) {
+        const index = selectedElement?.id;
+        const { id, type } = elements[index];
+        const { x1, x2, y1, y2 } = adjustElementCoordinates(elements[index]);
+        updateElement(id, x1, y1, x2, y2, type);
+      }
+    }
     setAction(ACTIONS_ENUM.NONE);
+    setSelectedElements(null);
   };
 
   return (
