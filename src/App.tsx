@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import rough from "roughjs";
 import "./App.css";
 import { ACTIONS_ENUM, TOOLS_ENUM } from "./utils/constants";
@@ -14,6 +14,7 @@ import {
   getElementAtPosition,
   resizedCoordinates,
 } from "./utils/utils";
+import { useHistory } from "./hooks/useHistory";
 
 const generator = rough.generator();
 
@@ -33,8 +34,8 @@ const createElement = (
 };
 
 function App() {
+  const [elements, setElements, undo, redo] = useHistory<DrawingElement[]>([]);
   const [tool, setTool] = useState<ToolType>(TOOLS_ENUM.LINE);
-  const [elements, setElements] = useState<DrawingElement[]>([]);
   const [selectedElement, setSelectedElements] =
     useState<SelectionElement | null>(null);
   const [action, setAction] = useState<ActionType>(ACTIONS_ENUM.NONE);
@@ -49,6 +50,20 @@ function App() {
     elements.forEach(({ roughtElement }) => roughCanvas.draw(roughtElement));
   }, [elements]);
 
+  useEffect(() => {
+    const undoRedoKeyHandler = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+        if (event.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+      }
+    };
+    document.addEventListener("keydown", undoRedoKeyHandler);
+    return () => document.removeEventListener("keydown", undoRedoKeyHandler);
+  }, [undo, redo]);
+
   const updateElement = (
     id: number,
     x1: number,
@@ -61,7 +76,7 @@ function App() {
 
     const _elements = [...elements];
     _elements[id] = updatedElement;
-    setElements(_elements);
+    setElements(_elements, true);
   };
 
   const handleMouseDown = (
@@ -75,6 +90,7 @@ function App() {
         const offsetX = clientX - element.x1;
         const offsetY = clientY - element.y1;
         setSelectedElements({ ...element, offsetX, offsetY });
+        setElements((prev) => prev);
         if (element.position === "inside") {
           setAction(ACTIONS_ENUM.MOVING);
         } else {
@@ -193,6 +209,10 @@ function App() {
           onChange={() => setTool(TOOLS_ENUM.RECTANGLE)}
         />
         <label htmlFor="rectangle">Rectangle</label>
+      </div>
+      <div style={{ position: "fixed", bottom: 0, padding: 10 }}>
+        <button onClick={undo}>Undo</button>
+        <button onClick={redo}>Redo</button>
       </div>
       <canvas
         id="canvas"
