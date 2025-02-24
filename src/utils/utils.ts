@@ -1,3 +1,4 @@
+import { RoughCanvas } from "roughjs/bin/canvas";
 import {
   NEARPOINT_OFFSET,
   POSITION_ENUM,
@@ -10,6 +11,7 @@ import {
   PositionType,
   SelectionElement,
 } from "./types";
+import getStroke from "perfect-freehand";
 
 export const distance = (a: Point2d, b: Point2d) => {
   return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
@@ -123,5 +125,65 @@ export const resizedCoordinates = (
       return { x1, y1, x2: clientX, y2: clientY };
     default:
       throw `position value: ${position} not supported`;
+  }
+};
+const average = (a: number, b: number) => (a + b) / 2;
+
+export const getSvgPathFromStroke = (points: number[][], closed = true) => {
+  const len = points.length;
+
+  if (len < 4) {
+    return ``;
+  }
+
+  let a = points[0];
+  let b = points[1];
+  const c = points[2];
+
+  let result = `M${a[0].toFixed(2)},${a[1].toFixed(2)} Q${b[0].toFixed(
+    2
+  )},${b[1].toFixed(2)} ${average(b[0], c[0]).toFixed(2)},${average(
+    b[1],
+    c[1]
+  ).toFixed(2)} T`;
+
+  for (let i = 2, max = len - 1; i < max; i++) {
+    a = points[i];
+    b = points[i + 1];
+    result += `${average(a[0], b[0]).toFixed(2)},${average(a[1], b[1]).toFixed(
+      2
+    )} `;
+  }
+
+  if (closed) {
+    result += "Z";
+  }
+
+  return result;
+};
+
+export const drawElement = (
+  roughCanvas: RoughCanvas,
+  context: CanvasRenderingContext2D,
+  element: DrawingElement
+) => {
+  const { type, points, roughtElement } = element;
+  switch (type) {
+    case TOOLS_ENUM.LINE:
+    case TOOLS_ENUM.RECTANGLE:
+      if (roughtElement) {
+        roughCanvas.draw(roughtElement);
+      }
+      break;
+    case TOOLS_ENUM.PENCIL:
+      if (points) {
+        const _stroke = getStroke(points);
+        const _pathData = getSvgPathFromStroke(_stroke);
+        const _path = new Path2D(_pathData);
+        context.fill(_path);
+      }
+      break;
+    default:
+      throw new Error(`tool type: ${type} not supported`);
   }
 };

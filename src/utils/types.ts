@@ -9,8 +9,9 @@ export interface DrawingElement {
   y1: number;
   x2: number;
   y2: number;
-  roughtElement: Drawable;
+  roughtElement?: Drawable;
   type: ToolType;
+  points?: { x: number; y: number }[];
 }
 
 export interface SelectionElement extends DrawingElement {

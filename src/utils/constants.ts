@@ -5,6 +5,7 @@ export const TOOLS_ENUM = {
   LINE: "line",
   RECTANGLE: "rectangle",
   SELECTION: "selection",
+  PENCIL: "pencil",
 } as const;
 
 export const ACTIONS_ENUM = {

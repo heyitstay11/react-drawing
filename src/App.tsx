@@ -11,6 +11,7 @@ import {
 import {
   adjustElementCoordinates,
   cursorForPosition,
+  drawElement,
   getElementAtPosition,
   resizedCoordinates,
 } from "./utils/utils";
@@ -26,16 +27,34 @@ const createElement = (
   y2: number,
   type: ToolType
 ): DrawingElement => {
-  const roughtElement =
-    type === TOOLS_ENUM.LINE
-      ? generator.line(x1, y1, x2, y2)
-      : generator.rectangle(x1, y1, x2 - x1, y2 - y1);
-  return { id, x1, y1, x2, y2, roughtElement, type };
+  let roughtElement;
+
+  switch (type) {
+    case TOOLS_ENUM.LINE:
+      roughtElement = generator.line(x1, y1, x2, y2);
+      return { id, x1, y1, x2, y2, roughtElement, type };
+    case TOOLS_ENUM.RECTANGLE:
+      roughtElement = generator.rectangle(x1, y1, x2 - x1, y2 - y1);
+      return { id, x1, y1, x2, y2, roughtElement, type };
+    case TOOLS_ENUM.PENCIL:
+      return {
+        id,
+        x1,
+        y1,
+        x2,
+        y2,
+        roughtElement,
+        type,
+        points: [{ x: x1, y: y1 }],
+      };
+    default:
+      throw new Error(`tool type: ${type} not supported`);
+  }
 };
 
 function App() {
   const [elements, setElements, undo, redo] = useHistory<DrawingElement[]>([]);
-  const [tool, setTool] = useState<ToolType>(TOOLS_ENUM.LINE);
+  const [tool, setTool] = useState<ToolType>(TOOLS_ENUM.PENCIL);
   const [selectedElement, setSelectedElements] =
     useState<SelectionElement | null>(null);
   const [action, setAction] = useState<ActionType>(ACTIONS_ENUM.NONE);
@@ -47,7 +66,7 @@ function App() {
 
     const roughCanvas = rough.canvas(canvas);
 
-    elements.forEach(({ roughtElement }) => roughCanvas.draw(roughtElement));
+    elements.forEach((element) => drawElement(roughCanvas, context, element));
   }, [elements]);
 
   useEffect(() => {
@@ -209,6 +228,14 @@ function App() {
           onChange={() => setTool(TOOLS_ENUM.RECTANGLE)}
         />
         <label htmlFor="rectangle">Rectangle</label>
+        <input
+          type="radio"
+          id="pencil"
+          radioGroup="shape"
+          checked={tool === TOOLS_ENUM.PENCIL}
+          onChange={() => setTool(TOOLS_ENUM.PENCIL)}
+        />
+        <label htmlFor="pencil">Pencil</label>
       </div>
       <div style={{ position: "fixed", bottom: 0, padding: 10 }}>
         <button onClick={undo}>Undo</button>
