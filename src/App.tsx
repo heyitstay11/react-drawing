@@ -91,10 +91,22 @@ function App() {
     y2: number,
     type: ToolType
   ) => {
-    const updatedElement = createElement(id, x1, y1, x2, y2, type);
-
     const _elements = [...elements];
-    _elements[id] = updatedElement;
+
+    switch (type) {
+      case TOOLS_ENUM.LINE:
+      case TOOLS_ENUM.RECTANGLE:
+        _elements[id] = createElement(id, x1, y1, x2, y2, type);
+        break;
+      case TOOLS_ENUM.PENCIL:
+        if (_elements[id].points) {
+          _elements[id].points = [..._elements[id].points, { x: x2, y: y2 }];
+        }
+        break;
+      default:
+        throw new Error(`tool type: ${type} not supported`);
+    }
+
     setElements(_elements, true);
   };
 
@@ -106,9 +118,16 @@ function App() {
       const element = getElementAtPosition(clientX, clientY, elements);
 
       if (element) {
-        const offsetX = clientX - element.x1;
-        const offsetY = clientY - element.y1;
-        setSelectedElements({ ...element, offsetX, offsetY });
+        if (element.type === TOOLS_ENUM.PENCIL) {
+          const xOffsets = element.points?.map((point) => clientX - point.x);
+          const yOffsets = element.points?.map((point) => clientY - point.y);
+          setSelectedElements({ ...element, xOffsets, yOffsets });
+        } else {
+          const offsetX = clientX - element.x1;
+          const offsetY = clientY - element.y1;
+          setSelectedElements({ ...element, offsetX, offsetY });
+        }
+
         setElements((prev) => prev);
         if (element.position === "inside") {
           setAction(ACTIONS_ENUM.MOVING);
@@ -160,19 +179,33 @@ function App() {
           type,
           offsetX = 0,
           offsetY = 0,
+          xOffsets = [],
+          yOffsets = [],
         } = selectedElement;
-        const width = x2 - x1;
-        const height = y2 - y1;
-        const nextX1 = clientX - offsetX;
-        const nextY1 = clientY - offsetY;
-        updateElement(
-          id,
-          nextX1,
-          nextY1,
-          nextX1 + width,
-          nextY1 + height,
-          type
-        );
+        if (selectedElement.type === TOOLS_ENUM.PENCIL) {
+          const newPoints = selectedElement.points?.map((_, index) => {
+            return {
+              x: clientX - xOffsets[index],
+              y: clientY - yOffsets[index],
+            };
+          });
+          const _elements = [...elements];
+          _elements[id] = { ..._elements[id], points: newPoints };
+          setElements(_elements, true);
+        } else {
+          const width = x2 - x1;
+          const height = y2 - y1;
+          const nextX1 = clientX - offsetX;
+          const nextY1 = clientY - offsetY;
+          updateElement(
+            id,
+            nextX1,
+            nextY1,
+            nextX1 + width,
+            nextY1 + height,
+            type
+          );
+        }
       }
     } else if (action === ACTIONS_ENUM.RESIZING) {
       if (selectedElement) {
@@ -189,7 +222,10 @@ function App() {
   };
 
   const handleMouseUp = () => {
-    if (action === ACTIONS_ENUM.DRAWING || action === ACTIONS_ENUM.RESIZING) {
+    if (
+      (action === ACTIONS_ENUM.DRAWING || action === ACTIONS_ENUM.RESIZING) &&
+      ([TOOLS_ENUM.LINE, TOOLS_ENUM.RECTANGLE] as ToolType[]).includes(tool)
+    ) {
       if (selectedElement) {
         const index = selectedElement?.id;
         const { id, type } = elements[index];

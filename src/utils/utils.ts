@@ -17,33 +17,66 @@ export const distance = (a: Point2d, b: Point2d) => {
   return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
 };
 
+export const isOnLine = (
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  x: number,
+  y: number,
+  distanceOffset = SELECTION_OFFSET
+) => {
+  const a = { x: x1, y: y1 };
+  const b = { x: x2, y: y2 };
+  const c = { x: x, y: y };
+
+  const offset = distance(a, b) - (distance(a, c) + distance(b, c));
+
+  return Math.abs(offset) < distanceOffset ? POSITION_ENUM.INSIDE : null;
+};
+
 export const isWithinElement = (
   x: number,
   y: number,
   element: DrawingElement
 ) => {
   const { type, x1, x2, y1, y2 } = element;
-  if (type === TOOLS_ENUM.RECTANGLE) {
-    const topLeft = nearPoint(x, y, x1, y1, POSITION_ENUM.TOP_LEFT);
-    const topRight = nearPoint(x, y, x2, y1, POSITION_ENUM.TOP_RIGHT);
-    const bottomLeft = nearPoint(x, y, x1, y2, POSITION_ENUM.BOTTOM_LEFT);
-    const bottomRight = nearPoint(x, y, x2, y2, POSITION_ENUM.BOTTOM_RIGHT);
-    const inside =
-      x >= x1 && x <= x2 && y >= y1 && y <= y2 ? POSITION_ENUM.INSIDE : null;
+  switch (type) {
+    case TOOLS_ENUM.LINE: {
+      const start = nearPoint(x, y, x1, y1, POSITION_ENUM.START);
+      const end = nearPoint(x, y, x2, y2, POSITION_ENUM.END);
+      const on = isOnLine(x1, y1, x2, y2, x, y);
 
-    return topLeft || topRight || bottomLeft || bottomRight || inside;
-  } else {
-    const a = { x: x1, y: y1 };
-    const b = { x: x2, y: y2 };
-    const c = { x: x, y: y };
+      return start || end || on;
+    }
 
-    const offset = distance(a, b) - (distance(a, c) + distance(b, c));
-    const start = nearPoint(x, y, x1, y1, POSITION_ENUM.START);
-    const end = nearPoint(x, y, x2, y2, POSITION_ENUM.END);
-    const inside =
-      Math.abs(offset) < SELECTION_OFFSET ? POSITION_ENUM.INSIDE : null;
+    case TOOLS_ENUM.RECTANGLE: {
+      const topLeft = nearPoint(x, y, x1, y1, POSITION_ENUM.TOP_LEFT);
+      const topRight = nearPoint(x, y, x2, y1, POSITION_ENUM.TOP_RIGHT);
+      const bottomLeft = nearPoint(x, y, x1, y2, POSITION_ENUM.BOTTOM_LEFT);
+      const bottomRight = nearPoint(x, y, x2, y2, POSITION_ENUM.BOTTOM_RIGHT);
+      const inside =
+        x >= x1 && x <= x2 && y >= y1 && y <= y2 ? POSITION_ENUM.INSIDE : null;
 
-    return start || end || inside;
+      return topLeft || topRight || bottomLeft || bottomRight || inside;
+    }
+
+    case TOOLS_ENUM.PENCIL: {
+      if (element.points) {
+        const betweenAnyPoint = element.points?.some((point, index) => {
+          const nextPoint = element.points?.[index + 1];
+          if (!nextPoint) return false;
+          return (
+            isOnLine(point.x, point.y, nextPoint.x, nextPoint.y, x, y, 5) !==
+            null
+          );
+        });
+        return betweenAnyPoint ? POSITION_ENUM.INSIDE : null;
+      }
+      return null;
+    }
+    default:
+      throw new Error(`tool type: ${type} not supported`);
   }
 };
 

@@ -18,6 +18,8 @@ export interface SelectionElement extends DrawingElement {
   position?: PositionType | null;
   offsetX?: number;
   offsetY?: number;
+  xOffsets?: number[];
+  yOffsets?: number[];
 }
 
 export interface Point2d {
