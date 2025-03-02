@@ -58,16 +58,21 @@ function App() {
   const [selectedElement, setSelectedElements] =
     useState<SelectionElement | null>(null);
   const [action, setAction] = useState<ActionType>(ACTIONS_ENUM.NONE);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
 
   useLayoutEffect(() => {
     const canvas = document.getElementById("canvas")! as HTMLCanvasElement;
     const context = canvas.getContext("2d")!;
+    const roughCanvas = rough.canvas(canvas);
     context.clearRect(0, 0, canvas.width, canvas.height);
 
-    const roughCanvas = rough.canvas(canvas);
+    context.save();
 
+    context.translate(panOffset.x, panOffset.y);
     elements.forEach((element) => drawElement(roughCanvas, context, element));
-  }, [elements]);
+
+    context.restore();
+  }, [elements, action, selectedElement, panOffset]);
 
   useEffect(() => {
     const undoRedoKeyHandler = (event: KeyboardEvent) => {
@@ -82,6 +87,17 @@ function App() {
     document.addEventListener("keydown", undoRedoKeyHandler);
     return () => document.removeEventListener("keydown", undoRedoKeyHandler);
   }, [undo, redo]);
+
+  useEffect(() => {
+    const panHandler = (event: WheelEvent) => {
+      setPanOffset((prev) => ({
+        x: prev.x - event.deltaX,
+        y: prev.y - event.deltaY,
+      }));
+    };
+    document.addEventListener("wheel", panHandler);
+    return () => document.removeEventListener("wheel", panHandler);
+  }, []);
 
   const updateElement = (
     id: number,
@@ -110,10 +126,18 @@ function App() {
     setElements(_elements, true);
   };
 
+  const getMouseCoordinates = (
+    e: React.MouseEvent<HTMLCanvasElement, MouseEvent>
+  ) => {
+    const clientX = e.clientX - panOffset.x;
+    const clientY = e.clientY - panOffset.y;
+    return { clientX, clientY };
+  };
+
   const handleMouseDown = (
     e: React.MouseEvent<HTMLCanvasElement, MouseEvent>
   ) => {
-    const { clientX, clientY } = e;
+    const { clientX, clientY } = getMouseCoordinates(e);
     if (tool === TOOLS_ENUM.SELECTION) {
       const element = getElementAtPosition(clientX, clientY, elements);
 
@@ -154,7 +178,7 @@ function App() {
   const handleMouseMove = (
     e: React.MouseEvent<HTMLCanvasElement, MouseEvent>
   ) => {
-    const { clientX, clientY } = e;
+    const { clientX, clientY } = getMouseCoordinates(e);
 
     if (tool === TOOLS_ENUM.SELECTION) {
       const element = getElementAtPosition(clientX, clientY, elements);
